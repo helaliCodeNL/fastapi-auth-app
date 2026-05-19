@@ -1,13 +1,15 @@
 import pyotp
 import qrcode
+import random
 from io import BytesIO
 import base64
-from app.core.config import settings
+from .config import settings
 
 class TwoFAUtils:
     @staticmethod
     def generate_secret() -> str:
-        return pyotp.random_base32()
+        # Generate simple 6-digit code
+        return str(random.randint(100000, 999999))
 
     @staticmethod
     def verify_token(secret: str, token: str) -> bool:

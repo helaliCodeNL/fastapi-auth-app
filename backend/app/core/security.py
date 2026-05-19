@@ -1,8 +1,9 @@
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
-from app.core.config import settings
+from .config import settings
 from typing import Optional
+import random
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -43,20 +44,14 @@ class TokenUtils:
 class ResetTokenUtils:
     @staticmethod
     def create_reset_token(email: str) -> tuple:
-        token = jwt.encode(
-            {"email": email, "type": "password_reset"},
-            settings.SECRET_KEY,
-            algorithm=settings.ALGORITHM
-        )
+        # Generate simple 6-digit code
+        code = str(random.randint(100000, 999999))
         expires = datetime.now(timezone.utc) + timedelta(hours=24)
-        return token, expires
+        return code, expires
 
     @staticmethod
     def verify_reset_token(token: str) -> Optional[str]:
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            if payload.get("type") != "password_reset":
-                return None
-            return payload.get("email")
-        except JWTError:
-            return None
+        # Note: In production, you'd want to store codes in cache/DB
+        # For now, this is a placeholder that accepts any code
+        # The actual validation happens in the endpoint
+        return token

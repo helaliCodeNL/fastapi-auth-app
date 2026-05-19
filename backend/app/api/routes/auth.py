@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import uuid
-from app.database import get_db
-from app.models.user import User
-from app.schemas.user import UserRegister, UserLogin, TwoFASetup, TwoFAVerify, PasswordReset, PasswordResetConfirm
-from app.core.security import PasswordUtils, TokenUtils, ResetTokenUtils
-from app.core.twofa import TwoFAUtils
-from app.core.email import EmailUtils
+from datetime import datetime
+from ...database import get_db
+from ...models.user import User
+from ...schemas.user import UserRegister, UserLogin, TwoFASetup, TwoFAVerify, PasswordReset, PasswordResetConfirm
+from ...core.security import PasswordUtils, TokenUtils, ResetTokenUtils
+from ...core.twofa import TwoFAUtils
+from ...core.email import EmailUtils
 
 router = APIRouter()
 
@@ -60,12 +61,15 @@ def setup_2fa(user_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
 
     secret = TwoFAUtils.generate_secret()
-    qr_code = TwoFAUtils.generate_qr_code(user.email, secret)
+    print(f"\n=== 2FA CODE ===")
+    print(f"User: {user.email}")
+    print(f"Code: {secret}")
+    print("===============\n")
     
     user.two_fa_secret = secret
     db.commit()
 
-    return {"secret": secret, "qr_code": qr_code}
+    return {"secret": secret}
 
 @router.post("/verify-2fa")
 def verify_2fa(data: TwoFAVerify, user_id: str, db: Session = Depends(get_db)):
@@ -106,30 +110,33 @@ def login_2fa(email: str, token: str, db: Session = Depends(get_db)):
 def forgot_password(data: PasswordReset, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
     if user:
-        token, expires = ResetTokenUtils.create_reset_token(user.email)
-        user.password_reset_token = token
+        code, expires = ResetTokenUtils.create_reset_token(user.email)
+        user.password_reset_token = code
         user.password_reset_expires = expires
         db.commit()
-        EmailUtils.send_password_reset_email(user.email, token)
+        
+        print(f"\n=== PASSWORD RESET CODE ===")
+        print(f"Email: {user.email}")
+        print(f"Code: {code}")
+        print("===========================\n")
+        
+        EmailUtils.send_password_reset_email(user.email, code)
     
-    return {"message": "If email exists, reset link sent"}
+    return {"message": "If email exists, reset code sent"}
 
 @router.post("/reset-password")
 def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)):
-    email = ResetTokenUtils.verify_reset_token(data.token)
-    if not email:
-        raise HTTPException(status_code=400, detail="Invalid token")
-
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    # Find user by reset code
+    user = db.query(User).filter(User.password_reset_token == data.token).first()
+    if not user or not user.password_reset_expires or user.password_reset_expires < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired code")
 
     user.hashed_password = PasswordUtils.hash_password(data.password)
     user.password_reset_token = None
     user.password_reset_expires = None
     db.commit()
 
-    return {"message": "Password reset"}
+    return {"message": "Password reset successfully"}
 
 @router.post("/refresh")
 def refresh(refresh_token: str):

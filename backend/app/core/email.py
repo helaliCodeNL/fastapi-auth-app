@@ -1,15 +1,14 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from app.core.config import settings
+from .config import settings
 
 class EmailUtils:
     @staticmethod
-    def send_password_reset_email(email: str, reset_token: str) -> bool:
+    def send_password_reset_email(email: str, reset_code: str) -> bool:
         try:
-            reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
             message = MIMEMultipart("alternative")
-            message["Subject"] = "Password Reset Request"
+            message["Subject"] = "Password Reset Code"
             message["From"] = settings.FROM_EMAIL
             message["To"] = email
 
@@ -17,8 +16,8 @@ class EmailUtils:
             <html>
               <body>
                 <h2>Password Reset</h2>
-                <p><a href="{reset_link}">Reset your password</a></p>
-                <p>Link expires in 24 hours.</p>
+                <p>Your reset code is: <strong>{reset_code}</strong></p>
+                <p>This code expires in 24 hours.</p>
               </body>
             </html>
             """

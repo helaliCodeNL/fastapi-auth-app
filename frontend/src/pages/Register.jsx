@@ -44,6 +44,7 @@ const Register = () => {
         </div>
 
         {errors.general && <div className="alert alert-error">{errors.general}</div>}
+        {errors.general && <div className="alert alert-info">2FA code will be displayed in server terminal during setup</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
